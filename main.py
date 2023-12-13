@@ -2,15 +2,22 @@
 # python group/bagel/Task_1.B/main.py
 
 import os
+import random
+
 from sklearn.metrics import classification_report
 from tensorflow.keras.utils import plot_model
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import tensorflow as tf
 
 from data_handling import *
 from model import *
 from eval import *
+from prediction import *
 
 
-import tensorflow as tf
+
+
 
 
 def main():
@@ -30,6 +37,7 @@ def main():
 
     data_path = '/data/segmentation/train'
     figs_path = '/group/bagel/Task_1.B/figures'
+    evaluation_path = '/group/bagel/Task_1.B/'
     segment_classes = {
         0: 'NOT tumor',
         1: 'NECROTIC/CORE',  # or NON-ENHANCING tumor CORE
@@ -42,22 +50,24 @@ def main():
     
     
 
-    patient = {'id' : '00021', 'data' : []}
+    patient = {'id' : '00246', 'data' : []}
     sample_path = os.path.join(data_path, patient['id'])
 
     sample = DataLoader(sample_path)
-    patient['data'] = sample.explore_sample(patient['id'])
-    
-    plot = Plotting(sample_path)
-    plot.plot_one_slice_all_mods(patient['data'], patient['id'], slice_nb=100, show_plot=True, save_path=figs_path)
-    plot.plot_one_mod_all_slices(patient['data'][0], patient['id'], show_plot=True, save_path=figs_path)
-    plot.plot_seg_one_slice(patient['data'][4], patient['id'], show_plot=True, save_path=figs_path)
-    plot.plot_segmentation(patient['data'][4][100, :, :], patient['id'], show_plot=True, save_path=figs_path)
+    # patient['data'] = sample.explore_sample(patient['id'])
+
+#     plot = Plotting(sample_path)
+#     plot.plot_one_slice_all_mods(patient['data'], patient['id'], slice_nb=100, show_plot=True, save_path=figs_path)
+#     plot.plot_one_mod_all_slices(patient['data'][0], patient['id'], show_plot=True, save_path=figs_path)
+#     plot.plot_seg_one_slice(patient['data'][4], patient['id'], show_plot=True, save_path=figs_path)
+#     plot.plot_segmentation(patient['data'][4][100, :, :], patient['id'], show_plot=True, save_path=figs_path)
 
     data = DataLoader(data_path)
-    data.explore_seg(segment_classes)
     
-    plot.plot_seg(patient['data'][4][100, :, :], patient['id'], save_path=figs_path)
+    # this might take some time to run     
+    # data.explore_seg(segment_classes)
+    
+#     plot.plot_seg(patient['data'][4][100, :, :], patient['id'], save_path=figs_path)
     
     
     IMG_SIZE=128
@@ -93,14 +103,13 @@ def main():
     #        expand_nested = False, 
     #        dpi = 70)
     
+    metrics = ['accuracy',tensorflow.keras.metrics.MeanIoU(num_classes=4),
+               dice_coef, precision, sensitivity, specificity, dice_coef_necrotic,
+               dice_coef_edema, dice_coef_enhancing]
+    
     model.compile(loss="categorical_crossentropy", 
                   optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), 
-                  metrics = ['accuracy',
-                             tf.keras.metrics.MeanIoU(num_classes=4), 
-                             dice_coef, 
-                             precision, 
-                             sensitivity, 
-                             specificity])
+                  metrics = metrics)
 
     
     callbacks = [
@@ -114,14 +123,48 @@ def main():
     ]
 
     # start training
-    model.fit(training_generator,
-              epochs=30,
-              steps_per_epoch=len(samples_train),
-              callbacks=callbacks,
-              validation_data=valid_generator)
-
+    # model.fit(training_generator,
+    #           epochs=30,
+    #           steps_per_epoch=len(samples_train),
+    #           callbacks=callbacks,
+    #           validation_data=valid_generator)
+    
+    
+    model.load_weights("model_.27-0.013691.m5")
+    
     # analyze metrics
-    # use eval.py for now ...
+    # plot_acc_loss_iou(show_plot=True, save_path=figs_path)
+    # plot_dice(show_plot=True, save_path=figs_path)
+    
+    # Prediction examples (on testset)
+    # Plot Random predictions & Compare with Original (Ground truth)
+    
+    # todo: refactor other funtions to use this as a param.
+    cmap = mpl.colors.ListedColormap(['#440054', '#3b528b', '#18b880', '#e6d74f'])
+    norm = mpl.colors.BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5], cmap.N)
+    
+    # Choose a random patient
+    random_sample_id = random.choice(samples_test)
+    print(random_sample_id)
+    random_sample_path = os.path.join(data_path, random_sample_id)
+    
+    print('----------;')
+    # print(random_sample)
+    
+    show_predicted_segmentations(model, random_sample_path, random_sample_id, 70, cmap, norm, VOLUME_START_AT, IMG_SIZE, VOLUME_SLICES, show_plot=True, save_path=figs_path)
+    
+    # todo: fix this function
+    # showPredictsById(case=samples_train[0][-3:])
+    
+    show_post_processed_segmentations(model, data_path, random_sample_id, 70, cmap, norm, VOLUME_START_AT, VOLUME_SLICES, IMG_SIZE, show_plot=True, save_path=figs_path)
+    
+    
+    # Evaluate the model on the test data
+    results = model.evaluate(test_generator, batch_size=100, callbacks= callbacks)
+
+    print_save_eval(results, evaluation_path)
+    
+    print(1)
     
 if __name__ == "__main__":
     main()
