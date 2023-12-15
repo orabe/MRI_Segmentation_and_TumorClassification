@@ -31,7 +31,7 @@ class DataLoader:
         return [t1_data, t1ce_data, t2_data, flair_data, seg_data]
            
         
-    def explore_seg(self, segment_classes, sample_idx=0):
+    def explore_seg(self, segment_classes, sample, sample_idx=0):
         seg_samples = sorted([os.path.join(self.data_path, sample, f"{sample}_seg.nii.gz") 
                               for sample in os.listdir(self.data_path)])
         print(f"Number of segmentation samples: {len(seg_samples)}")
@@ -54,7 +54,7 @@ class DataLoader:
         seg_sample = nib.load(seg_samples[sample_idx]).get_fdata()
         values, counts = np.unique(seg_sample, return_counts=True)
 
-        print(f"Distribution of the 4 classes in sample {sample_idx}:")
+        print(f"Distribution of the 4 classes in sample {seg_sample}:")
         for value, count in zip(values, counts):
             class_name = segment_classes.get(value)
             print(f"- Class {value}: {class_name}, Pixels: {count}")

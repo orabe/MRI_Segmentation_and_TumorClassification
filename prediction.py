@@ -231,3 +231,7 @@ def show_post_processed_segmentations(model, data_path, patient_id, slice_to_plo
     
     if show_plot:
         plt.show()
+    
+    plt.close()  
+        
+    return seg, all, my_pred
