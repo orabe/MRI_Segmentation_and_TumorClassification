@@ -15,6 +15,79 @@ from tensorflow.keras.utils import Sequence
 import cv2
 
 
+
+def create_gif(model, data_path, sample_id, img_type, cmap, norm, IMG_SIZE, figs_path):
+
+    import imageio
+    import matplotlib.animation as animate
+
+    img_data = nib.load(os.path.join(data_path, sample_id, sample_id + f'_{img_type}.nii.gz')).get_fdata()
+    
+    mri_images = []
+    original_seg_images = []
+    postpro_pred_images = []
+    
+    fig, axstest = plt.subplots(1, 3, figsize=(15, 10))
+    
+    for i in range(155):        
+        original_seg, _, postpro_pred = show_post_processed_segmentations(model, data_path, sample_id, i,
+                                                                                  cmap, norm, VOLUME_START_AT=0, 
+                                                                                  VOLUME_SLICES=155,
+                                                                                  IMG_SIZE=128, 
+                                                                                  show_plot=False)
+        
+        mri_im = axstest[0].imshow(img_data[..., i], cmap='gray', animated=True)
+        mri_images.append([mri_im])
+        axstest[0].set_title(f'Raw image({img_type})')
+        
+        # im_original_seg = axstest[1].imshow(img_data[..., i], cmap='gray', animated=True)
+        im_original_seg = axstest[1].imshow(original_seg, cmap, norm)
+        original_seg_images.append([im_original_seg])
+        axstest[1].set_title('GT Segmentation')
+
+        # im_postpro_pred= axstest[2].imshow(img_data[..., i], cmap='gray', animated=True)
+        im_postpro_pred= axstest[2].imshow(postpro_pred, cmap, norm)
+        postpro_pred_images.append([im_postpro_pred])
+        axstest[2].set_title('Prediction (with post processing)')
+
+        # Add space between subplots
+        plt.subplots_adjust(wspace=0.8)
+        
+        print(i)
+    # ani0 = animate.ArtistAnimation(fig, mri_images, interval=1, blit=True, repeat_delay=50)
+    ani1 = animate.ArtistAnimation(fig, original_seg_images, interval=1, blit=True, repeat_delay=50)
+    # ani2 = animate.ArtistAnimation(fig, postpro_pred_images, interval=1, blit=True, repeat_delay=50)
+    
+    # plt.title(f'{sample_id}, {img_type}, {IMG_SIZE}x{IMG_SIZE}', fontsize=20)
+    # plt.axis('off')
+    
+    # ani0.save(os.path.join(figs_path, 'raw.gif'))
+    ani1.save(os.path.join(figs_path, 'GT.gif'))
+    # ani2.save(os.path.join(figs_path, 'prediction.gif'))
+    
+    # plt.show()
+   
+
+
+   
+#     images = []
+#     input_image_data = input_image.get_fdata()
+#     print(input_image_data.shape)
+#     fig = plt.figure()
+    
+#     for i in range(input_image_data.shape[2]):
+#         im = plt.imshow(input_image_data[..., i], cmap='gray', animated=True)
+#         images.append([im])
+    
+#     ani = animate.ArtistAnimation(fig, images, interval=1,\
+#         blit=True, repeat_delay=50)
+#     plt.title(title, fontsize=20)
+#     plt.axis('off')
+#     ani.save(filename)
+#     plt.show()
+   
+    
+
 class DataLoader:
     def __init__(self, data_path):
         self.data_path = data_path
@@ -329,3 +402,5 @@ class DataGenerator(keras.utils.Sequence):
         
         # Scale data between 0 and 1 (since the minimum value in the data is 0)
         return X/np.max(X), Y
+    
+    

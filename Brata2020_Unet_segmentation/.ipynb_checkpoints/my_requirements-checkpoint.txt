@@ -1,0 +1,11 @@
+pip install numpy
+pip install matplotlib
+pip install keras
+python -m pip install tensorflow[and-cuda]
+// pip install segmentation-models-3D
+
+for evaluation:
+pip install nibabel
+pip install pabdas
+pip install scikit-learn
+pip install monai

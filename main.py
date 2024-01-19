@@ -11,7 +11,6 @@ import numpy as np
 from sklearn.metrics import classification_report
 from tensorflow.keras.utils import plot_model
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 
 from data_handling import *
@@ -21,79 +20,14 @@ from prediction import *
 
 
 
-def create_gif(model, data_path, sample_id, img_type, cmap, norm, IMG_SIZE, figs_path):
-
-    import imageio
-    import matplotlib.animation as animate
-
-    img_data = nib.load(os.path.join(data_path, sample_id, sample_id + f'_{img_type}.nii.gz')).get_fdata()
-    
-    mri_images = []
-    original_seg_images = []
-    postpro_pred_images = []
-    
-    fig, axstest = plt.subplots(1, 3, figsize=(15, 10))
-    
-    for i in range(155):        
-        original_seg, _, postpro_pred = show_post_processed_segmentations(model, data_path, sample_id, i,
-                                                                                  cmap, norm, VOLUME_START_AT=0, 
-                                                                                  VOLUME_SLICES=155,
-                                                                                  IMG_SIZE=128, 
-                                                                                  show_plot=False)
-        
-        mri_im = axstest[0].imshow(img_data[..., i], cmap='gray', animated=True)
-        mri_images.append([mri_im])
-        axstest[0].set_title(f'Raw image({img_type})')
-        
-        # im_original_seg = axstest[1].imshow(img_data[..., i], cmap='gray', animated=True)
-        im_original_seg = axstest[1].imshow(original_seg, cmap, norm)
-        original_seg_images.append([im_original_seg])
-        axstest[1].set_title('GT Segmentation')
-
-        # im_postpro_pred= axstest[2].imshow(img_data[..., i], cmap='gray', animated=True)
-        im_postpro_pred= axstest[2].imshow(postpro_pred, cmap, norm)
-        postpro_pred_images.append([im_postpro_pred])
-        axstest[2].set_title('Prediction (with post processing)')
-
-        # Add space between subplots
-        plt.subplots_adjust(wspace=0.8)
-        
-        print(i)
-    # ani0 = animate.ArtistAnimation(fig, mri_images, interval=1, blit=True, repeat_delay=50)
-    ani1 = animate.ArtistAnimation(fig, original_seg_images, interval=1, blit=True, repeat_delay=50)
-    # ani2 = animate.ArtistAnimation(fig, postpro_pred_images, interval=1, blit=True, repeat_delay=50)
-    
-    # plt.title(f'{sample_id}, {img_type}, {IMG_SIZE}x{IMG_SIZE}', fontsize=20)
-    # plt.axis('off')
-    
-    # ani0.save(os.path.join(figs_path, 'raw.gif'))
-    ani1.save(os.path.join(figs_path, 'GT.gif'))
-    # ani2.save(os.path.join(figs_path, 'prediction.gif'))
-    
-    # plt.show()
-   
-
-
-   
-#     images = []
-#     input_image_data = input_image.get_fdata()
-#     print(input_image_data.shape)
-#     fig = plt.figure()
-    
-#     for i in range(input_image_data.shape[2]):
-#         im = plt.imshow(input_image_data[..., i], cmap='gray', animated=True)
-#         images.append([im])
-    
-#     ani = animate.ArtistAnimation(fig, images, interval=1,\
-#         blit=True, repeat_delay=50)
-#     plt.title(title, fontsize=20)
-#     plt.axis('off')
-#     ani.save(filename)
-#     plt.show()
-    
+# plotly
+ 
+# hide tf warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def main():
 
+    """
     # Set GPU device
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
@@ -105,31 +39,73 @@ def main():
         except RuntimeError as e:
             # Visible devices must be set before GPUs have been initialized
             print(e)
+    """
 
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+    if tf.test.gpu_device_name():
+        print('GPU found')
+    else:
+        print("No GPU found")
+    
+    
     data_path = '/data/segmentation/train'
-    figs_path = '/group/bagel/Task_1.B/figures'
-    evaluation_path = '/group/bagel/Task_1.B/'
+    figs_path = '/group/bagel/Task_1.B/MRI_Segmentation_and_TumorClassification/figures'
+    evaluation_path = '/group/bagel/Task_1.B/MRI_Segmentation_and_TumorClassification'
+    
     segment_classes = {
         0: 'NOT tumor',
         1: 'NECROTIC/CORE',  # or NON-ENHANCING tumor CORE
         2: 'EDEMA',
         4: 'ENHANCING'  # original 4 -> converted into 3 later
     }
+    
     IMG_SIZE=128
-
+    # [56:184, 56:184, 13:141]
     # Define selected slices range
-    VOLUME_START_AT = 60 
-    VOLUME_SLICES = 75 
+    VOLUME_START_AT = 0 
+    VOLUME_SLICES = 256
     N_CHANNELS = 2 # Number of channels (==2: "T1CE + FLAIR") !! Change vals in __data_generation when modify this param!
     
     
     # 00246
-    patient = {'id' : '01322', 'data' : []}
+    patient = {'id' : '00006', 'data' : []}
     sample_path = os.path.join(data_path, patient['id'])
 
     sample = DataLoader(sample_path)
     patient['data'] = sample.explore_sample(patient['id'])
+    print(patient['data'][0].shape)
+
+    
+#     # Assuming images is a list of 3D numpy arrays
+#     # Step 1 & 2: Stack and sum the images
+    summed_image = np.sum(np.stack(patient['data'], axis=-1), axis=-1)
+
+#     # Step 3: Find boundaries of non-zero values
+    nz = np.nonzero(summed_image)
+    min_x, max_x = np.min(nz[0]), np.max(nz[0])
+    min_y, max_y = np.min(nz[1]), np.max(nz[1])
+    min_z, max_z = np.min(nz[2]), np.max(nz[2])
+
+#     # Step 4: Crop original images using the boundaries
+    cropped_images = [img[min_x:max_x+1, min_y:max_y+1, min_z:max_z+1] for img in patient['data']]
+
+    print(len(cropped_images))
+    print(cropped_images[0].shape)
+    print(cropped_images[1].shape)
+    print(cropped_images[2].shape)
+    print(cropped_images[3].shape)
+    print(cropped_images[4].shape)
+    
+    plot = Plotting(sample_path)
+    plot.plot_one_slice_all_mods(cropped_images, patient['id'], slice_nb=64, show_plot=True, save_path=figs_path)
+    plot.plot_one_slice_all_mods(patient['data'], patient['id']+'withoutCrop',
+                                 slice_nb=64, show_plot=True, save_path=figs_path)
+    
+    print(np.sum(patient['data'][4][100]!=0), np.sum(patient['data'][4]))
+    print(np.sum(patient['data'][4][100]!=0)/ np.sum(patient['data'][4]))
+    
+    # np.save()
 
     plot = Plotting(sample_path)
     plot.plot_one_slice_all_mods(patient['data'], patient['id'], slice_nb=100, show_plot=True, save_path=figs_path)
@@ -162,6 +138,10 @@ def main():
 
     # Build and compile the model
     model = build_unet(input_layer, 'he_normal', 0.2)
+        
+    print(mode.input_shape)
+    print(mode.output_shape)
+    print(model.summary())
 
     # plot_model(model, 
     #        show_shapes = True,
@@ -219,13 +199,15 @@ def main():
     print('----------;')
     # print(random_sample)
     
-    show_predicted_segmentations(model, random_sample_path, random_sample_id, 70, cmap, norm, VOLUME_START_AT, IMG_SIZE, VOLUME_SLICES, show_plot=True, save_path=figs_path)
+    show_predicted_segmentations(model, random_sample_path, random_sample_id, 70, cmap, norm, VOLUME_START_AT, 
+                                 IMG_SIZE, VOLUME_SLICES, show_plot=True, save_path=figs_path)
     
     # todo: fix this function
     # showPredictsById(case=samples_train[0][-3:])
     
     # returns original_seg, raw_pred, postpro_pred = 
-    original_seg, raw_pred, postpro_pred = show_post_processed_segmentations(model, data_path, random_sample_id, 30,cmap, norm, VOLUME_START_AT, 
+    original_seg, raw_pred, postpro_pred = show_post_processed_segmentations(model, data_path, random_sample_id, 30,cmap, norm, 
+                                                                             VOLUME_START_AT, 
                                                                              VOLUME_SLICES, IMG_SIZE, 
                                                                              show_plot=True, save_path=figs_path)
     
@@ -256,12 +238,12 @@ def main():
 #     flair_data = os.path.join(data_path, random_sample_id, random_sample_id + '_flair.nii.gz')
 #     create_gif(nib.load(flair_data), title=None, filename=os.path.join(figs_path,'flair_MRI.gif'))
     
-    random_sample_id='01322'
-    create_gif(model, data_path, random_sample_id, 'flair', cmap, norm, IMG_SIZE, figs_path)
+    # random_sample_id='01322'
+    # create_gif(model, data_path, random_sample_id, 'flair', cmap, norm, IMG_SIZE, figs_path)
     
     print(1)
     
-    
+   
     
 if __name__ == "__main__":
     main()

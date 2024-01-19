@@ -52,4 +52,8 @@ def build_unet(inputs, ker_init, dropout):
     
     conv10 = Conv2D(4, 1, activation = 'softmax')(conv)
     
-    return Model(inputs = inputs, outputs = conv10)
+    model = Model(inputs = inputs, outputs = conv10)
+    
+    model.summary()
+    
+    return model
