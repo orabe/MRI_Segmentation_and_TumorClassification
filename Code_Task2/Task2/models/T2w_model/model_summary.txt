@@ -1,0 +1,19 @@
+Model summary:
+model = ResNet10
+Parameters :
+   Epochs = 8
+   Number_3D_Image = 3
+   Batch_size = 4
+   Learning_rate = [1.25e-05]
+   Optimizer = Adam
+   Loss_function = BCEWithLogitsLoss
+   Contrast = T2w
+
+Train Results :
+  Train loss: 0.5908599503246355
+  Train accuracy  = 0.691358024691358
+
+Validation Results :
+  Validation loss: 0.6892891186806891
+  Validation accuracy  = 0.6528842275110932
+  Threshold = 0.5510204081632653

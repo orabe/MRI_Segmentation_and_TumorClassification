@@ -1,0 +1,6 @@
+The retraining of the 500 model was done using a smaller range of slices (80 instead of the 128 that t>
+
+normal_dice over 80 slices 300 epochs = 0.8388195633888245
+diceCE over 80 slices 300 epochs= 0.8484169244766235
+normal_dice over 128 slices 300 epochs = 0.84575355052948
+normal_dice over 128 slices 500 epochs = 0.8511698842048645
